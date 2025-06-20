@@ -1,14 +1,73 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tic_tac_toe/services/music_service.dart';
 import 'home_page.dart';
 
-class GameModePage extends StatelessWidget {
+class GameModePage extends StatefulWidget {
   const GameModePage({super.key});
+
+  @override
+  State<GameModePage> createState() => _GameModePageState();
+}
+
+class _GameModePageState extends State<GameModePage> {
+  bool isMusicOn = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMusicPreference();
+  }
+
+  Future<void> _loadMusicPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool('first_launch') ?? true;
+
+    if (isFirstLaunch) {
+      await prefs.setBool('music_on', true);
+      await prefs.setBool('first_launch', false);
+      isMusicOn = true;
+    } else {
+      isMusicOn = prefs.getBool('music_on') ?? true;
+    }
+
+    setState(() {});
+
+    if (isMusicOn) {
+      // Check if music player is paused, resume it, else play fresh
+      if (MusicService.isPaused) {
+        await MusicService.resumeMusic();
+      } else if (!MusicService.isPlaying) {
+        await MusicService.playBackgroundMusic();
+      }
+    }
+  }
+
+  Future<void> _toggleMusic() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (isMusicOn) {
+      // Pause instead of stop, so position is saved
+      await MusicService.pauseMusic();
+    } else {
+      // Resume if paused, else play new music
+      if (MusicService.isPaused) {
+        await MusicService.resumeMusic();
+      } else {
+        await MusicService.playBackgroundMusic();
+      }
+    }
+
+    isMusicOn = !isMusicOn;
+    await prefs.setBool('music_on', isMusicOn);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFDFF0D8), // Pastel Green
+      backgroundColor: const Color(0xFFDFF0D8),
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BAF92),
         title: const Center(
@@ -24,7 +83,6 @@ class GameModePage extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // Blurred decorative circles
           Positioned(
             top: -60,
             left: -60,
@@ -40,8 +98,6 @@ class GameModePage extends StatelessWidget {
             right: 40,
             child: _buildBlurredCircle(110, Colors.tealAccent.withAlpha(51)),
           ),
-
-          // Main content centered
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -106,6 +162,30 @@ class GameModePage extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: _toggleMusic,
+                  icon: Icon(
+                    isMusicOn ? Icons.volume_up : Icons.volume_off,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  label: Text(
+                    isMusicOn ? 'Music On' : 'Music Off',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -131,13 +211,12 @@ class GameModePage extends StatelessWidget {
     Navigator.of(context).push(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, secondaryAnimation) => page,
+        pageBuilder: (_, animation, __) => page,
         transitionsBuilder: (_, animation, __, child) {
           final tween = Tween<Offset>(
             begin: const Offset(1, 0),
             end: Offset.zero,
           ).chain(CurveTween(curve: Curves.easeInOut));
-
           return SlideTransition(
             position: animation.drive(tween),
             child: FadeTransition(opacity: animation, child: child),

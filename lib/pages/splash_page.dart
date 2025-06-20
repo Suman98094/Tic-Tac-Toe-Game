@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'game_mode_page.dart';
+//import '../services/music_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -18,7 +19,7 @@ class _SplashPageState extends State<SplashPage>
   @override
   void initState() {
     super.initState();
-
+    // MusicService.playBackgroundMusic();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -76,7 +77,7 @@ class _SplashPageState extends State<SplashPage>
                 ),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/tic_tac_toe_icon.png', // make sure to add this image to assets
+                    'assets/images/tic_tac_toe_icon.png', // make sure to add this image to assets
                     fit: BoxFit.cover,
                   ),
                 ),

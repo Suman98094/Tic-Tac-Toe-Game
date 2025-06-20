@@ -1,9 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tic_tac_toe/services/score_services.dart';
+import 'package:tic_tac_toe/widgets/text_widget.dart';
 import '../core/constants.dart';
 import '../widgets/tile_widget.dart';
 import '../services/game_service.dart';
+import '../services/music_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   final bool vsComputer;
@@ -18,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   String currentPlayer = playerX;
   bool gameOver = false;
   bool isLoading = true;
+  bool isMusicOn = true;
 
   late final String mode;
   Map<String, int> scores = {'X': 0, 'O': 0, 'Draw': 0};
@@ -28,7 +32,37 @@ class _HomePageState extends State<HomePage> {
     mode = widget.vsComputer ? 'pvc' : 'pvp';
     _loadScores();
     _loadGame();
+    _loadMusicPreference();
   }
+
+  /* Future<void> _loadMusicPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    isMusicOn = prefs.getBool('music_on') ?? true;
+    setState(() {});
+    if (isMusicOn) MusicService.playBackgroundMusic();
+  } */
+
+  Future<void> _loadMusicPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    isMusicOn = prefs.getBool('music_on') ?? true;
+    setState(() {});
+    if (isMusicOn) {
+      await MusicService.playBackgroundMusic(); // This already checks if playing
+    }
+  }
+
+  /* Future<void> _toggleMusic() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isMusicOn) {
+      await MusicService.pauseMusic(); // ✅ pause instead of stop
+    } else {
+      await MusicService.resumeMusic(); // ✅ resume from same position
+    }
+    setState(() {
+      isMusicOn = !isMusicOn;
+    });
+    prefs.setBool('music_on', isMusicOn);
+  } */
 
   void _loadScores() async {
     await ScoreService.initScores();
@@ -37,6 +71,12 @@ class _HomePageState extends State<HomePage> {
       scores = loaded;
     });
   }
+
+  /*  @override
+  void dispose() {
+    MusicService.stopMusic();
+    super.dispose();
+  } */
 
   void _loadGame() async {
     final data = await GameService.loadGame(mode);
@@ -136,7 +176,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showDialog(String message) async {
-    // Update the score first
     if (message.contains(playerX)) {
       await ScoreService.increaseXWin(mode);
     } else if (message.contains(playerO)) {
@@ -147,10 +186,9 @@ class _HomePageState extends State<HomePage> {
 
     _loadScores();
 
-    // Show styled dialog
     showDialog(
       context: context,
-      barrierDismissible: false, // prevent accidental dismissal
+      barrierDismissible: false,
       builder: (_) => Dialog(
         backgroundColor: Colors.white.withAlpha(25),
         insetPadding: const EdgeInsets.symmetric(horizontal: 40),
@@ -173,9 +211,7 @@ class _HomePageState extends State<HomePage> {
                     message.contains("Draw")
                         ? Icons.handshake_rounded
                         : Icons.emoji_events,
-                    color: message.contains("Draw")
-                        ? Colors.amber
-                        : Colors.amber,
+                    color: Colors.amber,
                     size: 48,
                   ),
                   const SizedBox(height: 16),
@@ -255,10 +291,15 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
+        /* actions: [
+          IconButton(
+            icon: Icon(isMusicOn ? Icons.volume_up : Icons.volume_off),
+            onPressed: _toggleMusic,
+          ),
+        ], */
       ),
       body: Stack(
         children: [
-          // 🌫️ Blurred background circles
           _blurredCircle(
             200,
             const Offset(-60, -40),
@@ -274,19 +315,11 @@ class _HomePageState extends State<HomePage> {
             const Offset(100, 400),
             Colors.teal.withAlpha(30),
           ),
-
-          // 🎮 Game content
           Column(
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  'Scores (${mode.toUpperCase()})  |  X : ${scores['X']}  |  O : ${scores['O']}  |  Draws : ${scores['Draw']}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                child: ScoreText(mode: mode, scores: scores),
               ),
               Expanded(
                 child: GridView.builder(
